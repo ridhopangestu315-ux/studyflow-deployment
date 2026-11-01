@@ -1,0 +1,10 @@
+Options -Indexes
+RewriteEngine On
+# Jangan mengubah request API menjadi halaman React.
+RewriteRule ^api(?:/|$) - [END]
+# Layani file/folder statis yang memang ada.
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [END]
+# Fallback React Router.
+RewriteRule ^ index.html [END]

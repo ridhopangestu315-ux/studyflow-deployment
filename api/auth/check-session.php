@@ -1,0 +1,19 @@
+<?php
+declare(strict_types=1);
+
+require_once __DIR__ . '/session.php';
+pastikanMetode('GET');
+try {
+    mulaiSesiAman();
+} catch (Throwable $kesalahan) {
+    error_log('StudyFlow check-session error: ' . $kesalahan->getMessage());
+    kirimJson(['berhasil' => false, 'pesan' => 'Sesi belum dapat dimulai. Periksa konfigurasi server.'], 503);
+    exit;
+}
+
+if (!isset($_SESSION['user']) || !is_array($_SESSION['user'])) {
+    kirimJson(['berhasil' => true, 'authenticated' => false, 'user' => null, 'csrfToken' => tokenCsrf()]);
+    exit;
+}
+
+kirimJson(['berhasil' => true, 'authenticated' => true, 'user' => dataPenggunaSesi($_SESSION['user']), 'csrfToken' => tokenCsrf()]);

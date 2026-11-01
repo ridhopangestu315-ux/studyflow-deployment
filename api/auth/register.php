@@ -1,0 +1,75 @@
+<?php
+declare(strict_types=1);
+
+require_once __DIR__ . '/session.php';
+pastikanMetode('POST');
+mulaiSesiAman();
+pastikanCsrf();
+$masukan = bacaMasukanJson();
+$nama = trim((string) ($masukan['name'] ?? ''));
+$email = strtolower(trim((string) ($masukan['email'] ?? '')));
+$password = (string) ($masukan['password'] ?? '');
+$jumlahKarakterNama = preg_match_all('/./us', $nama);
+
+if ($nama === '' || $jumlahKarakterNama === false || $jumlahKarakterNama > 100) {
+    kirimJson(['berhasil' => false, 'pesan' => 'Nama wajib diisi dan maksimal 100 karakter.'], 422);
+    exit;
+}
+if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 254) {
+    kirimJson(['berhasil' => false, 'pesan' => 'Masukkan alamat email yang valid.'], 422);
+    exit;
+}
+if (strlen($password) < 8 || strlen($password) > 72) {
+    kirimJson(['berhasil' => false, 'pesan' => 'Password harus terdiri dari 8 sampai 72 karakter.'], 422);
+    exit;
+}
+
+try {
+    $pdo = buatKoneksiDatabase();
+    $periksa = $pdo->prepare('SELECT id FROM users WHERE email = :email LIMIT 1');
+    $periksa->execute(['email' => $email]);
+    if ($periksa->fetch()) {
+        kirimJson(['berhasil' => false, 'pesan' => 'Email tersebut sudah terdaftar. Silakan masuk.'], 409);
+        exit;
+    }
+
+    $hashPassword = password_hash($password, PASSWORD_DEFAULT);
+    $pdo->beginTransaction();
+    $simpan = $pdo->prepare('INSERT INTO users (name, email, password_hash) VALUES (:name, :email, :password_hash)');
+    $simpan->execute(['name' => $nama, 'email' => $email, 'password_hash' => $hashPassword]);
+    $pengguna = ['id' => (int) $pdo->lastInsertId(), 'name' => $nama, 'email' => $email];
+
+    $simpanPengaturan = $pdo->prepare('INSERT INTO pengaturan_pengguna (pengguna_id) VALUES (:pengguna_id)');
+    $simpanPengaturan->execute(['pengguna_id' => $pengguna['id']]);
+    $pdo->commit();
+
+    session_regenerate_id(true);
+    $_SESSION['user'] = $pengguna;
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+
+    kirimJson(['berhasil' => true, 'pesan' => 'Akun berhasil dibuat. Selamat belajar!', 'user' => dataPenggunaSesi($pengguna), 'csrfToken' => tokenCsrf()], 201);
+} catch (PDOException $kesalahan) {
+    error_log('StudyFlow register PDO error: ' . $kesalahan->getMessage());
+    if ($kesalahan->getCode() === '23000' && (int) ($kesalahan->errorInfo[1] ?? 0) === 1062) {
+        kirimJson(['berhasil' => false, 'pesan' => 'Email tersebut sudah terdaftar. Silakan masuk.'], 409);
+        exit;
+    }
+    if (in_array((int) ($kesalahan->errorInfo[1] ?? 0), [1045, 1049, 2002, 2003, 2005], true)) {
+        kirimJson([
+            'berhasil' => false,
+            'pesan' => 'Koneksi MySQL StudyFlow gagal. Periksa api/config/config.local.php dan pastikan MySQL Laragon berjalan.',
+        ], 503);
+        exit;
+    }
+    kirimKesalahanServer();
+} catch (Throwable $kesalahan) {
+    error_log('StudyFlow register error: ' . $kesalahan->getMessage());
+    if ($kesalahan instanceof RuntimeException && str_contains($kesalahan->getMessage(), 'config.local.php')) {
+        kirimJson([
+            'berhasil' => false,
+            'pesan' => 'Konfigurasi database lokal belum siap. Salin api/config/config.example.php menjadi api/config/config.local.php, lalu isi password MySQL Anda.',
+        ], 503);
+        exit;
+    }
+    kirimKesalahanServer();
+}
