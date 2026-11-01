@@ -1,13 +1,18 @@
 ﻿# StudyFlow — paket deployment InfinityFree
 
-Folder ini adalah hasil build untuk diunggah ke folder `htdocs` akun InfinityFree. Unggah seluruh isi folder ini (termasuk `.htaccess` dan folder `api`) memakai File Manager atau FTP. Jangan unggah folder proyek sumber.
+Folder ini adalah paket deployment terpisah. Untuk pengujian Laragon, buka `http://localhost/studyflow-deployment/`. Untuk InfinityFree, unggah isi folder ini ke `htdocs` setelah meninjau konfigurasi servernya.
+
+## Memperbarui deployment lokal
+
+1. Jalankan `npm run build -- --base=/studyflow-deployment/` dari `C:\laragon\www\belajar-react`.
+2. Salin seluruh isi `C:\laragon\www\belajar-react\dist` ke folder ini, timpa file lama.
+3. Di bundle JavaScript hasil salinan, URL API harus memakai prefix `/studyflow-deployment/api/`. Build ini disiapkan untuk subfolder Laragon; untuk hosting pada root domain, lakukan build terpisah dengan base `/` dan sesuaikan URL API menjadi `/api/`.
+4. Perubahan backend diperbarui dengan menyalin file API yang berubah dari `belajar-react\api` ke `studyflow-deployment\api`. Pertahankan `api/config/config.local.php` yang hanya berisi kredensial lokal, dan jangan salin kredensial ke frontend atau Git.
+5. Pastikan Apache dan MySQL Laragon aktif. Uji halaman, `http://localhost/studyflow-deployment/api/`, dan `http://localhost/studyflow-deployment/api/test.php`.
 
 ## Konfigurasi database
 
-1. Buat database melalui Control Panel InfinityFree, lalu impor `database/studyflow_infinityfree.sql` dari proyek utama setelah memilih database tersebut di phpMyAdmin. File SQL tidak disertakan dalam paket web.
-2. Buka `api/config/config.production.example.php` di server dan salin/ubah namanya menjadi `config.local.php`.
-3. Isi host, nama database lengkap, username, password, dan port persis dari Control Panel InfinityFree. Jangan memakai kredensial Laragon. `config.local.php` diblokir dari akses HTTP oleh `api/config/.htaccess`.
-4. Buka `https://DOMAIN-ANDA/api/test.php`. Hasil sukses menampilkan status PHP dan koneksi serta nama database, tanpa kredensial.
+Jangan gunakan konfigurasi localhost pada InfinityFree. Buat konfigurasi server produksi secara terpisah dan jangan menyalin `config.local.php` dari Laragon.
 
 ## Verifikasi dan catatan
 
